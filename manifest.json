@@ -1,26 +1,14 @@
 {
   "manifest_version": 3,
-  "name": "OpenCode Summarizer",
-  "version": "1.0.0",
-  "description": "Summarize any webpage using your local OpenCode instance",
-  "permissions": [
-    "activeTab",
-    "scripting",
-    "storage"
-  ],
-  "host_permissions": [
-    "http://localhost/*",
-    "http://127.0.0.1/*",
-    "https://api.bilibili.com/*",
-    "https://aisubtitle.hdslb.com/*"
-  ],
-  "action": {
-    "default_popup": "popup.html",
-    "default_icon": {
-      "16": "icons/icon16.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
-    }
+  "name": "OpenCode Reading Assistant",
+  "description": "Read articles with AI: select words to explain, ask questions in side panel, powered by local OpenCode server",
+  "version": "2.0",
+  "permissions": ["contextMenus", "sidePanel", "activeTab", "scripting", "tabs"],
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "background": {
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {

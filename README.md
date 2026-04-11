@@ -2,6 +2,9 @@
 
 Chrome 扩展：配合本地 [OpenCode](https://opencode.ai) 服务，在浏览器侧边栏提供 AI 阅读辅助。
 
+<img width="1169" height="706" alt="image" src="https://github.com/user-attachments/assets/9f82cef5-7ac9-48ef-a0ae-fe90edbc7692" />
+
+
 ## 功能
 
 - **选词解释** — 选中文字 → 右键 → AI 在侧边栏解释含义、搭配、用法

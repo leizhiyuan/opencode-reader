@@ -9,6 +9,9 @@ chrome.runtime.onInstalled.addListener(() => {
     title: 'AI 解释「%s」',
     contexts: ["selection"],
   });
+
+  // click extension icon to open side panel
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {

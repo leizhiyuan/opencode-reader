@@ -143,6 +143,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === "getSession") {
     const entry = tabSessions.get(msg.tabId);
     sendResponse({ sessionId: entry?.sessionId || null });
+    return;
   }
 
   if (msg.type === "createSession") {

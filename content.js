@@ -1,27 +1,49 @@
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg.type !== "getContext") return;
+  if (msg.type === "getContext") {
+    const selection = window.getSelection();
+    if (!selection.rangeCount) {
+      sendResponse({ context: "" });
+      return;
+    }
 
-  const selection = window.getSelection();
-  if (!selection.rangeCount) {
-    sendResponse({ context: "" });
+    const range = selection.getRangeAt(0);
+    let container = range.commonAncestorContainer;
+    if (container.nodeType === Node.TEXT_NODE) {
+      container = container.parentElement;
+    }
+
+    const blockTags = new Set([
+      "P", "DIV", "ARTICLE", "SECTION", "LI", "BLOCKQUOTE",
+      "TD", "TH", "H1", "H2", "H3", "H4", "H5", "H6", "PRE",
+    ]);
+    let block = container;
+    while (block && !blockTags.has(block.tagName)) {
+      block = block.parentElement;
+    }
+
+    const contextText = (block || container).innerText || "";
+    sendResponse({ context: contextText.slice(0, 2000) });
     return;
   }
 
-  const range = selection.getRangeAt(0);
-  let container = range.commonAncestorContainer;
-  if (container.nodeType === Node.TEXT_NODE) {
-    container = container.parentElement;
+  if (msg.type === "getPageContent") {
+    const content = extractPageContent();
+    sendResponse({ content });
+    return;
   }
-
-  const blockTags = new Set([
-    "P", "DIV", "ARTICLE", "SECTION", "LI", "BLOCKQUOTE",
-    "TD", "TH", "H1", "H2", "H3", "H4", "H5", "H6", "PRE",
-  ]);
-  let block = container;
-  while (block && !blockTags.has(block.tagName)) {
-    block = block.parentElement;
-  }
-
-  const contextText = (block || container).innerText || "";
-  sendResponse({ context: contextText.slice(0, 2000) });
 });
+
+function extractPageContent() {
+  const selectors = ["article", '[role="main"]', "main", ".post-content", ".article-content", ".entry-content"];
+  for (const sel of selectors) {
+    const el = document.querySelector(sel);
+    if (el && el.innerText.trim().length > 200) {
+      return el.innerText.trim().slice(0, 12000);
+    }
+  }
+  const body = document.body.cloneNode(true);
+  for (const tag of body.querySelectorAll("nav, header, footer, aside, script, style, .sidebar, .comments")) {
+    tag.remove();
+  }
+  return (body.innerText || "").trim().slice(0, 12000);
+}

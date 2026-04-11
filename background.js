@@ -50,7 +50,15 @@ async function getOrCreateSession(tabId, tabTitle, tabUrl) {
   if (!res.ok) throw new Error(`Failed to create session: ${res.status}`);
   const data = await res.json();
 
-  const entry = { sessionId: data.id, initialized: false, url: tabUrl };
+  let pageContent = "";
+  try {
+    const resp = await chrome.tabs.sendMessage(tabId, { type: "getPageContent" });
+    if (resp?.content) pageContent = resp.content;
+  } catch (e) {
+    console.warn("Failed to get page content:", e);
+  }
+
+  const entry = { sessionId: data.id, initialized: false, url: tabUrl, pageContent };
   tabSessions.set(tabId, entry);
 
   initSession(entry);
@@ -62,10 +70,15 @@ function initSession(entry) {
   if (entry.initialized || !entry.url) return;
   entry.initialized = true;
 
+  const browserContent = entry.pageContent
+    ? `\n\nBelow is the article content extracted directly from the browser as a fallback:\n\n${entry.pageContent}`
+    : "";
+
   const initPrompt = `You are a reading companion helping the user deeply understand a technical article. The user is reading:
 ${entry.url}
 
-Please use the WebFetch tool to fetch and read the full article from the URL above.
+First, try to use the WebFetch tool to fetch the full article from the URL above. If WebFetch fails or returns no useful content (e.g. due to access restrictions), use the browser-extracted content below instead.
+${browserContent}
 
 From now on, the user will select words, phrases, or sentences from this article. Your job is NOT to simply translate or define — instead, help the user truly understand what the selected content means in the context of this article.
 

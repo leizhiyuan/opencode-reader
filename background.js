@@ -43,21 +43,23 @@ function initSession(entry) {
   if (entry.initialized || !entry.url) return;
   entry.initialized = true;
 
-  const initPrompt = `You are a reading assistant. The user is reading this article:
+  const initPrompt = `You are a reading companion helping the user deeply understand a technical article. The user is reading:
 ${entry.url}
 
 Please use the WebFetch tool to fetch and read the full article from the URL above.
-From now on, the user will select words or sentences from this article, or ask questions about it.
 
-For word/phrase explanations:
-1. Meaning in this article's context (用中英文双语)
-2. If English: pronunciation, common collocations
-3. Why the author used this word/phrase here
-4. An example sentence
+From now on, the user will select words, phrases, or sentences from this article. Your job is NOT to simply translate or define — instead, help the user truly understand what the selected content means in the context of this article.
+
+When the user selects something, explain:
+- What it refers to in this specific context — the concept, mechanism, or idea behind it
+- Why it matters here — how it connects to the article's argument or technical point
+- Background knowledge the user might need to fully grasp it (if any)
+
+Use 中文 to explain. Be concise but insightful — like a knowledgeable friend reading alongside.
 
 For general questions: answer based on the article content.
 
-Keep explanations concise but insightful. Say "已阅读，请选词" when done.`;
+Say "已阅读，请选词" when ready.`;
 
   // fire and forget - don't block
   fetch(`${OPENCODE_URL}/session/${entry.sessionId}/message`, {

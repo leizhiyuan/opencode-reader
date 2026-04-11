@@ -141,10 +141,12 @@ async function sendUserMessage() {
 }
 
 async function explainSelection(sid, word, context) {
-  const prompt = `解释我选中的内容: "${word}"
+  const prompt = `我选中了: "${word}"
 
-所在段落上下文:
-${context}`;
+所在段落:
+${context}
+
+帮我理解这个在文章里具体指什么。`;
 
   appendMessage("user", `🔍 ${word}`);
   await sendAndWait(sid, prompt);

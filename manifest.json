@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "OpenCode Reading Assistant",
+  "name": "OpenCode Reader",
   "description": "Read articles with AI: select words to explain, ask questions in side panel, powered by local OpenCode server",
   "version": "2.0",
   "permissions": ["contextMenus", "sidePanel", "activeTab", "scripting", "tabs"],

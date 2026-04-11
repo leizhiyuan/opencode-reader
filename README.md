@@ -1,4 +1,4 @@
-# OpenCode Reading Assistant
+# OpenCode Reader
 
 Chrome 扩展：配合本地 [OpenCode](https://opencode.ai) 服务，在浏览器侧边栏提供 AI 阅读辅助。
 

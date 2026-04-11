@@ -131,6 +131,11 @@ const assistantTexts = new Map();
 let currentAssistantEl = null;
 let currentAssistantMsgId = null;
 
+function renderMarkdown(text) {
+  const html = marked.parse(text, { breaks: true });
+  return DOMPurify.sanitize(html);
+}
+
 function handleAssistantText(part) {
   if (!currentAssistantEl) return;
 
@@ -139,7 +144,7 @@ function handleAssistantText(part) {
   if (loading) loading.remove();
 
   assistantTexts.set(part.messageID, part.text);
-  contentEl.textContent = part.text;
+  contentEl.innerHTML = renderMarkdown(part.text);
   scrollToBottom();
 }
 
@@ -265,9 +270,14 @@ function appendMessage(role, text) {
   removeEmpty();
   const el = document.createElement("div");
   el.className = `msg ${role}`;
+  const rendered = text
+    ? role === "assistant"
+      ? renderMarkdown(text)
+      : escapeHtml(text)
+    : "";
   el.innerHTML = `
     <div class="label">${role === "user" ? "You" : "Assistant"}</div>
-    <div class="content">${text ? escapeHtml(text) : ""}</div>
+    <div class="content">${rendered}</div>
   `;
   messagesEl.appendChild(el);
   scrollToBottom();

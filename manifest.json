@@ -3,7 +3,7 @@
   "name": "OpenCode Reader",
   "description": "Read articles with AI: select words to explain, ask questions in side panel, powered by local OpenCode server",
   "version": "2.0",
-  "permissions": ["contextMenus", "sidePanel", "activeTab", "scripting", "tabs"],
+  "permissions": ["contextMenus", "sidePanel", "activeTab", "scripting", "tabs", "storage"],
   "side_panel": {
     "default_path": "sidepanel.html"
   },

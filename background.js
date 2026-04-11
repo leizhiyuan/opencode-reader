@@ -1,4 +1,24 @@
-const OPENCODE_URL = "http://localhost:19877";
+const DEFAULT_PORT = 19877;
+
+let opencodeUrl = `http://localhost:${DEFAULT_PORT}`;
+
+async function getOpenCodeUrl() {
+  const { opencodePort } = await chrome.storage.local.get("opencodePort");
+  const port = opencodePort || DEFAULT_PORT;
+  opencodeUrl = `http://localhost:${port}`;
+  return opencodeUrl;
+}
+
+// reload URL when settings change
+chrome.storage.onChanged.addListener((changes) => {
+  if (changes.opencodePort) {
+    const port = changes.opencodePort.newValue || DEFAULT_PORT;
+    opencodeUrl = `http://localhost:${port}`;
+  }
+});
+
+// init on startup
+getOpenCodeUrl();
 
 // tabId → { sessionId, initialized, url }
 const tabSessions = new Map();
@@ -10,7 +30,6 @@ chrome.runtime.onInstalled.addListener(() => {
     contexts: ["selection"],
   });
 
-  // click extension icon to open side panel
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 });
 
@@ -22,7 +41,8 @@ async function getOrCreateSession(tabId, tabTitle, tabUrl) {
   const existing = tabSessions.get(tabId);
   if (existing) return existing;
 
-  const res = await fetch(`${OPENCODE_URL}/session`, {
+  const url = await getOpenCodeUrl();
+  const res = await fetch(`${url}/session`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ title: tabTitle || `Tab ${tabId}` }),
@@ -33,7 +53,6 @@ async function getOrCreateSession(tabId, tabTitle, tabUrl) {
   const entry = { sessionId: data.id, initialized: false, url: tabUrl };
   tabSessions.set(tabId, entry);
 
-  // auto initialize: tell AI about the article
   initSession(entry);
 
   return entry;
@@ -61,8 +80,7 @@ For general questions: answer based on the article content.
 
 Say "已阅读，请选词" when ready.`;
 
-  // fire and forget - don't block
-  fetch(`${OPENCODE_URL}/session/${entry.sessionId}/message`, {
+  fetch(`${opencodeUrl}/session/${entry.sessionId}/message`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -120,6 +138,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     getOrCreateSession(msg.tabId, msg.tabTitle, msg.tabUrl)
       .then((entry) => sendResponse({ sessionId: entry.sessionId }))
       .catch(() => sendResponse({ sessionId: null }));
+    return true;
+  }
+
+  if (msg.type === "getOpenCodeUrl") {
+    getOpenCodeUrl().then((url) => sendResponse({ url }));
     return true;
   }
 });

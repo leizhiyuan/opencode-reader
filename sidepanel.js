@@ -1,12 +1,94 @@
-const OPENCODE_URL = "http://localhost:19877";
+const DEFAULT_PORT = 19877;
+let OPENCODE_URL = `http://localhost:${DEFAULT_PORT}`;
+let currentPort = DEFAULT_PORT;
+
 const messagesEl = document.getElementById("messages");
 const inputEl = document.getElementById("user-input");
 const sendBtn = document.getElementById("send-btn");
+const statusDot = document.getElementById("status-dot");
+const statusText = document.getElementById("status-text");
+const settingsBtn = document.getElementById("settings-btn");
+const settingsPanel = document.getElementById("settings-panel");
+const portInput = document.getElementById("port-input");
+const savePortBtn = document.getElementById("save-port-btn");
+const startCmd = document.getElementById("start-cmd");
 
 let sessionId = null;
 let busy = false;
 let eventSource = null;
 let pendingResolve = null;
+let connected = false;
+let healthTimer = null;
+
+// --- settings ---
+
+settingsBtn.addEventListener("click", () => {
+  settingsPanel.classList.toggle("open");
+});
+
+savePortBtn.addEventListener("click", async () => {
+  const port = parseInt(portInput.value, 10);
+  if (!port || port < 1 || port > 65535) return;
+
+  await chrome.storage.local.set({ opencodePort: port });
+  applyPort(port);
+  settingsPanel.classList.remove("open");
+});
+
+async function loadPort() {
+  const { opencodePort } = await chrome.storage.local.get("opencodePort");
+  const port = opencodePort || DEFAULT_PORT;
+  portInput.value = port;
+  applyPort(port);
+}
+
+function applyPort(port) {
+  currentPort = port;
+  OPENCODE_URL = `http://localhost:${port}`;
+  portInput.value = port;
+  startCmd.textContent = `opencode serve --port ${port}`;
+
+  // reconnect SSE
+  if (eventSource) {
+    eventSource.close();
+    eventSource = null;
+  }
+  if (sessionId) connectSSE();
+
+  checkHealth();
+}
+
+// --- health check ---
+
+async function checkHealth() {
+  try {
+    const res = await fetch(`${OPENCODE_URL}/global/health`, {
+      signal: AbortSignal.timeout(3000),
+    });
+    const data = await res.json();
+    setConnected(data.healthy === true, data.version);
+  } catch {
+    setConnected(false);
+  }
+}
+
+function setConnected(isConnected, version) {
+  connected = isConnected;
+  statusDot.className = `status-dot${isConnected ? " connected" : ""}`;
+  if (isConnected) {
+    statusText.textContent = `已连接${version ? ` (v${version})` : ""}`;
+  } else {
+    statusText.innerHTML = `未连接 — 请运行 <code style="font-size:11px;background:#f3f4f6;padding:1px 4px;border-radius:3px">opencode serve --port ${currentPort}</code>`;
+  }
+}
+
+function startHealthCheck() {
+  checkHealth();
+  if (healthTimer) clearInterval(healthTimer);
+  healthTimer = setInterval(checkHealth, 5000);
+}
+
+// --- SSE ---
 
 function connectSSE() {
   if (eventSource) return;
@@ -18,7 +100,6 @@ function connectSSE() {
       const payload = event.payload;
       if (!payload || payload.properties?.sessionID !== sessionId) return;
 
-      // track assistant message ID from message.updated
       if (payload.type === "message.updated") {
         const info = payload.properties.info;
         if (info?.role === "assistant" && !info.time?.completed) {
@@ -29,7 +110,6 @@ function connectSSE() {
         }
       }
 
-      // only show text parts that belong to the assistant message
       if (payload.type === "message.part.updated") {
         const part = payload.properties.part;
         if (
@@ -40,13 +120,17 @@ function connectSSE() {
           handleAssistantText(part);
         }
       }
-    } catch (err) {
-      // ignore parse errors
+    } catch {
+      // ignore
     }
+  };
+
+  eventSource.onerror = () => {
+    setConnected(false);
   };
 }
 
-const assistantTexts = new Map(); // messageID → accumulated text
+const assistantTexts = new Map();
 let currentAssistantEl = null;
 let currentAssistantMsgId = null;
 
@@ -62,7 +146,7 @@ function handleAssistantText(part) {
   scrollToBottom();
 }
 
-function handleAssistantDone(info) {
+function handleAssistantDone() {
   busy = false;
   sendBtn.disabled = false;
   currentAssistantMsgId = null;
@@ -73,6 +157,8 @@ function handleAssistantDone(info) {
   }
 }
 
+// --- messages from background ---
+
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === "explain") {
     sessionId = msg.sessionId;
@@ -80,6 +166,8 @@ chrome.runtime.onMessage.addListener((msg) => {
     explainSelection(msg.sessionId, msg.word, msg.context);
   }
 });
+
+// --- input ---
 
 sendBtn.addEventListener("click", sendUserMessage);
 inputEl.addEventListener("keydown", (e) => {
@@ -161,7 +249,6 @@ async function sendAndWait(sid, text) {
     '<span class="loading">思考中…</span>';
   currentAssistantMsgId = null;
 
-  // fire and forget - response comes via SSE
   fetch(`${OPENCODE_URL}/session/${sid}/message`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -170,11 +257,12 @@ async function sendAndWait(sid, text) {
     }),
   }).catch(() => {});
 
-  // wait for assistant done event
   return new Promise((resolve) => {
     pendingResolve = resolve;
   });
 }
+
+// --- DOM helpers ---
 
 function appendMessage(role, text) {
   removeEmpty();
@@ -189,26 +277,14 @@ function appendMessage(role, text) {
   return el;
 }
 
-function appendStatus(text) {
-  removeEmpty();
-  const el = document.createElement("div");
-  el.className = "status";
-  el.innerHTML = `<span class="loading">${escapeHtml(text)}</span>`;
-  messagesEl.appendChild(el);
-}
-
 function appendError(e) {
   const el = document.createElement("div");
   el.className = "error";
   el.style.margin = "16px";
   el.textContent = e.message.includes("fetch")
-    ? "无法连接 OpenCode。请确认已运行: opencode serve --port 19877"
+    ? `无法连接 OpenCode。请运行: opencode serve --port ${currentPort}`
     : e.message;
   messagesEl.appendChild(el);
-}
-
-function clearMessages() {
-  messagesEl.innerHTML = "";
 }
 
 function removeEmpty() {
@@ -225,3 +301,8 @@ function escapeHtml(s) {
   el.textContent = s;
   return el.innerHTML;
 }
+
+// --- init ---
+
+loadPort();
+startHealthCheck();

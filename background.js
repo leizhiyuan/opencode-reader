@@ -70,15 +70,13 @@ function initSession(entry) {
   if (entry.initialized || !entry.url) return;
   entry.initialized = true;
 
-  const browserContent = entry.pageContent
-    ? `\n\nBelow is the article content extracted directly from the browser as a fallback:\n\n${entry.pageContent}`
-    : "";
+  const articleSection = entry.pageContent
+    ? `\n\nHere is the article content (extracted from the user's browser):\n\n${entry.pageContent}`
+    : `\n\nThe browser could not extract article content. Please use the WebFetch tool to fetch and read the full article from the URL above.`;
 
   const initPrompt = `You are a reading companion helping the user deeply understand a technical article. The user is reading:
 ${entry.url}
-
-First, try to use the WebFetch tool to fetch the full article from the URL above. If WebFetch fails or returns no useful content (e.g. due to access restrictions), use the browser-extracted content below instead.
-${browserContent}
+${articleSection}
 
 From now on, the user will select words, phrases, or sentences from this article. Your job is NOT to simply translate or define — instead, help the user truly understand what the selected content means in the context of this article.
 

@@ -109,12 +109,29 @@ function connectSSE() {
 
       if (payload.type === "message.part.updated") {
         const part = payload.properties.part;
-        if (
-          part?.type === "text" &&
-          part.messageID &&
-          part.messageID === currentAssistantMsgId
-        ) {
-          handleAssistantText(part);
+        if (part?.type === "text" && part.messageID) {
+          if (!currentAssistantMsgId) {
+            currentAssistantMsgId = part.messageID;
+          }
+          if (part.messageID === currentAssistantMsgId) {
+            assistantTexts.set(part.messageID, part.text);
+            renderStreamingText(part.text);
+          }
+        }
+      }
+
+      if (payload.type === "message.part.delta") {
+        const props = payload.properties;
+        if (props.field === "text" && props.messageID) {
+          if (!currentAssistantMsgId) {
+            currentAssistantMsgId = props.messageID;
+          }
+          if (props.messageID === currentAssistantMsgId) {
+            const prev = assistantTexts.get(props.messageID) || "";
+            const updated = prev + props.delta;
+            assistantTexts.set(props.messageID, updated);
+            renderStreamingText(updated);
+          }
         }
       }
     } catch {
@@ -130,25 +147,50 @@ function connectSSE() {
 const assistantTexts = new Map();
 let currentAssistantEl = null;
 let currentAssistantMsgId = null;
+let markdownRenderTimer = null;
 
 function renderMarkdown(text) {
   const html = marked.parse(text, { breaks: true });
   return DOMPurify.sanitize(html);
 }
 
-function handleAssistantText(part) {
+function renderStreamingText(text) {
   if (!currentAssistantEl) return;
 
   const contentEl = currentAssistantEl.querySelector(".content");
   const loading = contentEl.querySelector(".loading");
   if (loading) loading.remove();
 
-  assistantTexts.set(part.messageID, part.text);
-  contentEl.innerHTML = renderMarkdown(part.text);
+  if (!contentEl.classList.contains("streaming")) {
+    contentEl.classList.add("streaming");
+  }
+  contentEl.textContent = text;
+
+  if (markdownRenderTimer) clearTimeout(markdownRenderTimer);
+  markdownRenderTimer = setTimeout(() => {
+    contentEl.classList.remove("streaming");
+    contentEl.innerHTML = renderMarkdown(text);
+    scrollToBottom();
+  }, 300);
+
   scrollToBottom();
 }
 
 function handleAssistantDone() {
+  if (markdownRenderTimer) {
+    clearTimeout(markdownRenderTimer);
+    markdownRenderTimer = null;
+  }
+
+  if (currentAssistantEl) {
+    const contentEl = currentAssistantEl.querySelector(".content");
+    const text = assistantTexts.get(currentAssistantMsgId);
+    if (text) {
+      contentEl.classList.remove("streaming");
+      contentEl.innerHTML = renderMarkdown(text);
+    }
+  }
+
   busy = false;
   sendBtn.disabled = false;
   currentAssistantMsgId = null;
@@ -157,6 +199,8 @@ function handleAssistantDone() {
     pendingResolve();
     pendingResolve = null;
   }
+
+  scrollToBottom();
 }
 
 // --- messages from background ---

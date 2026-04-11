@@ -5,8 +5,8 @@ const tabSessions = new Map();
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
-    id: "claude-explain",
-    title: 'Claude 解释「%s」',
+    id: "oc-explain",
+    title: 'AI 解释「%s」',
     contexts: ["selection"],
   });
 });
@@ -67,7 +67,7 @@ Keep explanations concise but insightful. Say "已阅读，请选词" when done.
 }
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  if (info.menuItemId !== "claude-explain") return;
+  if (info.menuItemId !== "oc-explain") return;
 
   await chrome.sidePanel.open({ tabId: tab.id });
 

@@ -18,7 +18,6 @@ let busy = false;
 let eventSource = null;
 let pendingResolve = null;
 let connected = false;
-let healthTimer = null;
 
 // --- settings ---
 
@@ -84,8 +83,6 @@ function setConnected(isConnected, version) {
 
 function startHealthCheck() {
   checkHealth();
-  if (healthTimer) clearInterval(healthTimer);
-  healthTimer = setInterval(checkHealth, 5000);
 }
 
 // --- SSE ---

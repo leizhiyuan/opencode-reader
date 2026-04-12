@@ -18,16 +18,15 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install crx3
-        run: npm install -g crx3
-
       - name: Decode private key
         run: echo "${{ secrets.CRX_PRIVATE_KEY }}" | base64 -d > key.pem
 
       - name: Build CRX
         run: |
-          crx3 pack . -o opencode-reader.crx -p key.pem \
-            --exclude .git --exclude .github --exclude key.pem --exclude '*.crx'
+          zip -r extension.zip . -x '.git/*' '.github/*' 'key.pem' '*.crx' '*.zip'
+          npm install crx3
+          npx crx3 extension.zip -p key.pem -o opencode-reader.crx
+          rm -f extension.zip
 
       - name: Clean up key
         run: rm -f key.pem

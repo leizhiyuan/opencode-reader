@@ -1,0 +1,44 @@
+name: Build CRX and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install crx3
+        run: npm install -g crx3
+
+      - name: Decode private key
+        run: echo "${{ secrets.CRX_PRIVATE_KEY }}" | base64 -d > key.pem
+
+      - name: Build CRX
+        run: |
+          crx3 pack . -o opencode-reader.crx -p key.pem \
+            --exclude .git --exclude .github --exclude key.pem --exclude '*.crx'
+
+      - name: Clean up key
+        run: rm -f key.pem
+
+      - name: Get version from tag
+        id: version
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ steps.version.outputs.tag }}
+          files: opencode-reader.crx
+          generate_release_notes: true

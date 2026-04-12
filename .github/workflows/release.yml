@@ -23,10 +23,20 @@ jobs:
 
       - name: Build CRX
         run: |
-          zip -r extension.zip . -x '.git/*' '.github/*' 'key.pem' '*.crx' '*.zip'
-          npm install crx3
-          npx crx3 extension.zip -p key.pem -o opencode-reader.crx
-          rm -f extension.zip
+          npm install crx
+          node -e "
+            const fs = require('fs');
+            const path = require('path');
+            const ChromeExtension = require('crx');
+            const crx = new ChromeExtension({ privateKey: fs.readFileSync('key.pem') });
+            crx.load(path.resolve('.'))
+              .then(crx => crx.pack())
+              .then(buf => {
+                fs.writeFileSync('opencode-reader.crx', buf);
+                console.log('CRX built successfully');
+              })
+              .catch(e => { console.error(e); process.exit(1); });
+          "
 
       - name: Clean up key
         run: rm -f key.pem

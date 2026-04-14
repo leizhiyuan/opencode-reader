@@ -147,7 +147,8 @@ function connectSSE() {
 const assistantTexts = new Map();
 let currentAssistantEl = null;
 let currentAssistantMsgId = null;
-let markdownRenderTimer = null;
+let renderRAF = null;
+let pendingStreamText = null;
 
 function renderMarkdown(text) {
   const html = marked.parse(text, { breaks: true });
@@ -157,30 +158,28 @@ function renderMarkdown(text) {
 function renderStreamingText(text) {
   if (!currentAssistantEl) return;
 
-  const contentEl = currentAssistantEl.querySelector(".content");
-  const loading = contentEl.querySelector(".loading");
-  if (loading) loading.remove();
+  pendingStreamText = text;
 
-  if (!contentEl.classList.contains("streaming")) {
-    contentEl.classList.add("streaming");
-  }
-  contentEl.textContent = text;
+  if (renderRAF) return;
+  renderRAF = requestAnimationFrame(() => {
+    renderRAF = null;
+    if (!currentAssistantEl || pendingStreamText === null) return;
 
-  if (markdownRenderTimer) clearTimeout(markdownRenderTimer);
-  markdownRenderTimer = setTimeout(() => {
-    contentEl.classList.remove("streaming");
-    contentEl.innerHTML = renderMarkdown(text);
+    const contentEl = currentAssistantEl.querySelector(".content");
+    const loading = contentEl.querySelector(".loading");
+    if (loading) loading.remove();
+
+    contentEl.innerHTML = renderMarkdown(pendingStreamText);
     scrollToBottom();
-  }, 300);
-
-  scrollToBottom();
+  });
 }
 
 function handleAssistantDone() {
-  if (markdownRenderTimer) {
-    clearTimeout(markdownRenderTimer);
-    markdownRenderTimer = null;
+  if (renderRAF) {
+    cancelAnimationFrame(renderRAF);
+    renderRAF = null;
   }
+  pendingStreamText = null;
 
   if (currentAssistantEl) {
     const contentEl = currentAssistantEl.querySelector(".content");
